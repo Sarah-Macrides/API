@@ -2,15 +2,6 @@ import sys
 import requests
 import csv
 
-# Dictionnaire des espèces et leurs gènes
-dico_especes = {
-  'homo_sapiens': 'RAD51',
-  'arabidopsis_thaliana': 'PHYB',
-  'saccharomyces_cerevisiae': 'SFA1',
-  'leishmania_major': 'ACP',
-  'escherichia_coli_gca_005395625': 'HYBE'
-}
-
 # Fonction pour extraire les références d'un gène pour une espèce donnée
 def extract_references(species, gene):
   # URL de l'API Ensembl pour obtenir les références en fonction des symboles
@@ -43,19 +34,46 @@ def extract_info(species, gene):
     "protein_access_number": protein_access_number
   }
 
-# Exécution et création du fichier résultats
-def run_ensembl():
-  output_file = "results_ensembl.csv"
-  fieldnames = ["species", "gene_symbol", "gene_id", "genome_browser", "rna_access_number", "protein_access_number"]
-  
-  with open(output_file, "w", newline="") as csvfile:
-    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    writer.writeheader()
+def read_gene_file(file_path):
+    gene_dict = {}
+    with open(file_path, "r") as file:
+        for line in file:
+            parts = line.strip().split(',')
+            if len(parts) == 2:
+                gene, species = parts
+                gene_dict[species] = gene
+            else:
+                print(f"Ligne ignorée (format incorrect) : {line.strip()}")
+    return gene_dict
 
-    for gene, species in dico_especes.items():
-      info = extract_info(gene, species)
-      if info:
-        writer.writerow(info)
-        print(f"Données enregistrées pour {gene} ({species})")
-      else:
-        print(f"Aucune donnée enregistrée pour {gene} ({species})")
+# Exécution et création du fichier résultats
+def main():
+    # Lire le fichier GenSymbol_45.txt
+    gene_file = "GeneSymbols_45.txt"
+    gene_dict = read_gene_file(gene_file)
+
+    output_file = "results_ensembl.csv"
+    fieldnames = ["species", "gene_symbol", "gene_id", "genome_browser", "rna_access_number", "protein_access_number"]
+  
+    with open(output_file, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for species, gene in gene_dict.items():
+            if species.lower() == "escherichia_coli":
+                species_id = "escherichia_coli_gca_005395625"
+            else:
+                species_id = species
+
+            try:
+                info = extract_info(species_id, gene)
+                if info["gene_id"] != "N/A":  # Vérifier si les données sont valides
+                    writer.writerow(info)
+                    print(f"Données enregistrées pour {gene} ({species})")
+                else:
+                    print(f"Aucune donnée trouvée pour {gene} ({species})")
+            except Exception as e:
+                print(f"Erreur lors de la récupération des données pour {gene} ({species}): {e}")
+
+if __name__ == "__main__":
+    main()
